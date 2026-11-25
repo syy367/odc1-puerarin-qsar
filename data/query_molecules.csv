@@ -1,0 +1,8 @@
+name,pubchem_cid,smiles,inchikey,role
+Puerarin,5281807,O=c1c(-c2ccc(O)cc2)coc2c([C@@H]3O[C@H](CO)[C@@H](O)[C@H](O)[C@H]3O)c(O)ccc12,HKEAFJYKMMKDOR-VPRICQMDSA-N,目标分子
+Eflornithine (DFMO),3009,NCCCC(N)(C(=O)O)C(F)F,VLCYCQAOQCDTCN-UHFFFAOYSA-N,阳性对照/金标准
+Genistein,5280961,O=c1c(-c2ccc(O)cc2)coc2cc(O)cc(O)c12,TZBJGXHYKVUXJN-UHFFFAOYSA-N,天然产物对照（葛根素苷元）
+Daidzein,5281708,O=c1c(-c2ccc(O)cc2)coc2cc(O)ccc12,ZQSIJRDFPHDXIC-UHFFFAOYSA-N,天然产物对照（异黄酮）
+Quercetin,5280343,O=c1c(O)c(-c2ccc(O)c(O)c2)oc2cc(O)cc(O)c12,REFJWTPEDVJJIY-UHFFFAOYSA-N,天然产物对照（黄酮醇）
+Resveratrol,445154,Oc1ccc(/C=C/c2cc(O)cc(O)c2)cc1,LUKBXSAWLPMMSZ-OWOJBTEDSA-N,天然产物对照（芪类）
+APA (3-aminooxy-1-aminopropane),65020,NCCCON,VSZFWDPIWSPZON-UHFFFAOYSA-N,ODC 强效抑制剂（共晶配体 XAP）

@@ -1,0 +1,60 @@
+# ODC1 虚拟筛选项目 — Python 依赖版本锁定
+# 生成环境：Python 3.13 / Windows，见 README.md Installation
+# 安装：pip install -r requirements.txt
+
+# --- 核心数据 / 数值计算 ---
+numpy==2.5.4
+pandas==3.1.1
+scipy==1.18.1
+networkx==3.7
+joblib==1.6.0
+threadpoolctl==3.8.0
+packaging==26.3
+PyYAML==6.0.3
+xmltodict==1.0.4
+python-dateutil==4.0.0
+tzdata==2026.6
+
+# --- 化学信息学 ---
+rdkit==2026.9.2
+openbabel-wheel==3.1.1.23
+meeko==0.8.0
+gemmi==0.7.5
+
+# --- 机器学习 ---
+scikit-learn==1.9.1
+xgboost==3.4.1
+
+# --- 绘图 / 文档 ---
+matplotlib==3.11.2
+contourpy==1.4.0
+cycler==0.12.1
+fonttools==4.68.0
+kiwisolver==1.5.1
+pillow==13.0.0
+narwhals==2.28.0
+python-docx==1.2.0
+
+# --- 量子化学 (DFT) ---
+pyscf==2.15.0
+h5py==3.16.0
+
+# --- 分子动力学 / 力场 ---
+OpenMM==8.6.1rc1
+openmmforcefields==0.15.1
+openff-toolkit==0.18.0
+# 下面两个包在 PyPI 上被 yank，需从 PyPI 直链安装（否则 openff-toolkit 解析失败）
+openff-units @ https://files.pythonhosted.org/packages/6e/57/fdc498716cc3a18a8cf15955d9900955171766e4303e2c936e3ee2ba688d/openff_units-0.3.2-py3-none-any.whl
+openff-utilities @ https://files.pythonhosted.org/packages/02/e5/46f5db5347ab7a92bf02f509bfa3ebd04047c1a4c226ecacd68434421da7/openff_utilities-0.1.16-py3-none-any.whl
+Pint==0.25.3
+cached-property==2.0.1
+cachetools==8.0.0
+flexcache==0.3
+flexparser==0.4
+msgpack==1.2.4
+lxml==7.0.0a3
+psutil==7.2.2
+platformdirs==4.14.5
+pyparsing==3.3.3
+cloudpickle==3.1.2
+typing_extensions==4.16.0rc2

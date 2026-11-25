@@ -1,0 +1,25 @@
+{
+  "getLindsByUniprotResponse" : {
+    "bdb.hit" : "3",
+    "bdb.length" : "NA",
+    "bdb.uniprot_length" : "461",
+    "bdb.primary" : "P11926",
+    "bdb.alternative" : [ "P11926", "Q53TU3", "Q6LDS9" ],
+    "bdb.affinities" : [ {
+      "bdb.monomerid" : 50487428,
+      "bdb.smile" : "NCCC[C@H](NN)C(O)=O |r|",
+      "bdb.affinity_type" : "Kd",
+      "bdb.affinity" : " 500"
+    }, {
+      "bdb.monomerid" : 50659777,
+      "bdb.smile" : "NOCC1CCNC1",
+      "bdb.affinity_type" : "IC50",
+      "bdb.affinity" : " 360"
+    }, {
+      "bdb.monomerid" : 50659782,
+      "bdb.smile" : "Cc1ncc(COP(=O)(O)O)c(/C=N/OC[C@@H]2CCNC2)c1O",
+      "bdb.affinity_type" : "IC50",
+      "bdb.affinity" : " 160"
+    } ]
+  }
+}

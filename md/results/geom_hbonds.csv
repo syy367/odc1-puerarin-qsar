@@ -1,0 +1,2 @@
+residue,protein_atom,type,hbond_occupancy_pct,mean_DA_A,mean_HA_A,mean_angle_deg,ligand_atom
+GLY236,O,ligand-donor,21.95,3.22,2.36,150.16,O6

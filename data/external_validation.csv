@@ -1,0 +1,2 @@
+inchikey,chembl_id,pref_name,smiles,value_nM,pIC50,endpoint,tier,species,assay_desc,doi,year,journal,n_records
+VLCYCQAOQCDTCN-UHFFFAOYSA-N,CHEMBL830,EFLORNITHINE,NCCCC(N)(C(=O)O)C(F)F,145500.0,3.8532524282639877,IC50,A,Homo sapiens,Inhibition of full length C-terminal his-6 tagged human ODC extracted from Escherichia coli BL21 (DE3) cells incubated for 30 mins by liquid scintillation analysis,10.1021/acs.jmedchem.4c03120,2025,J Med Chem,2

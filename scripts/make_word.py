@@ -1,0 +1,318 @@
+"""生成投稿用 Word：正文表格 + 图注 + 补充材料表格（三线表）。"""
+import json
+from pathlib import Path
+
+import pandas as pd
+from docx import Document
+from docx.enum.section import WD_ORIENT, WD_SECTION
+from docx.enum.table import WD_TABLE_ALIGNMENT
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
+from docx.shared import Cm, Pt
+
+ROOT = Path(__file__).resolve().parent.parent
+OUT = ROOT / "ODC1_QSAR_投稿表格与图注_20261116_wbuddy.docx"
+
+ds = pd.read_csv(ROOT / "data" / "dataset_odc1.csv")
+perf = pd.read_csv(ROOT / "results" / "model_performance.csv")
+pred = pd.read_csv(ROOT / "results" / "predictions.csv")
+_ext = pred[pred["name"].str.contains("external", na=False)]
+if len(_ext):
+    _obs = _ext["observed_pIC50"].iloc[0]
+    pred = pred[~pred["name"].str.contains("external", na=False)].copy()
+    pred.loc[pred["name"] == "Eflornithine (DFMO)", "observed_pIC50"] = _obs
+pred = pred.drop_duplicates(subset=["smiles"])
+s2 = pd.read_csv(ROOT / "results" / "table_s2_descriptors.csv")
+s3 = pd.read_csv(ROOT / "results" / "table_s3_docking_detail.csv")
+s5 = pd.read_csv(ROOT / "results" / "table_s5_sensitivity.csv")
+dft = json.load(open(ROOT / "results" / "dft_results.json", encoding="utf-8"))
+S = json.load(open(ROOT / "results" / "qsar_summary.json", encoding="utf-8"))
+
+ROLE_EN = {
+    "目标分子": "Target compound",
+    "阳性对照/金标准": "Reference inhibitor (gold standard)",
+    "天然产物对照（葛根素苷元）": "Natural product control (aglycone of puerarin)",
+    "天然产物对照（异黄酮）": "Natural product control (isoflavone)",
+    "天然产物对照（黄酮醇）": "Natural product control (flavonol)",
+    "天然产物对照（芪类）": "Natural product control (stilbene)",
+    "ODC 强效抑制剂（共晶配体 XAP）": "Potent ODC inhibitor (cocrystal ligand XAP)",
+    "external validation": "External validation",
+}
+
+doc = Document()
+st = doc.styles["Normal"]
+st.font.name = "Times New Roman"
+st.font.size = Pt(10.5)
+st.element.rPr.rFonts.set(qn("w:eastAsia"), "宋体")
+sec = doc.sections[0]
+sec.page_width, sec.page_height = Cm(21.0), Cm(29.7)
+for m in ("left_margin", "right_margin", "top_margin", "bottom_margin"):
+    setattr(sec, m, Cm(2.2))
+
+
+def borders_three_line(table):
+    tbl = table._tbl
+    tblPr = tbl.tblPr
+    for old in tblPr.findall(qn("w:tblBorders")):
+        tblPr.remove(old)
+    b = OxmlElement("w:tblBorders")
+    for edge, val in (("top", "single"), ("left", "none"), ("bottom", "single"),
+                      ("right", "none"), ("insideH", "none"), ("insideV", "none")):
+        el = OxmlElement(f"w:{edge}")
+        el.set(qn("w:val"), val)
+        el.set(qn("w:sz"), "12" if val == "single" else "0")
+        el.set(qn("w:space"), "0")
+        el.set(qn("w:color"), "000000")
+        b.append(el)
+    tblPr.append(b)
+    for cell in table.rows[0].cells:
+        tcPr = cell._tc.get_or_add_tcPr()
+        tb = OxmlElement("w:tcBorders")
+        bt = OxmlElement("w:bottom")
+        bt.set(qn("w:val"), "single")
+        bt.set(qn("w:sz"), "8")
+        bt.set(qn("w:space"), "0")
+        bt.set(qn("w:color"), "000000")
+        tb.append(bt)
+        tcPr.append(tb)
+
+
+def caption(text):
+    p = doc.add_paragraph()
+    p.paragraph_format.space_before = Pt(12)
+    p.paragraph_format.space_after = Pt(6)
+    r = p.add_run(text)
+    r.bold = True
+    r.font.size = Pt(10)
+    r.font.name = "Times New Roman"
+    return p
+
+
+def note(text):
+    p = doc.add_paragraph()
+    p.paragraph_format.space_before = Pt(3)
+    p.paragraph_format.space_after = Pt(14)
+    r = p.add_run(text)
+    r.font.size = Pt(8)
+    r.italic = False
+    return p
+
+
+def make_table(df, widths=None, fs=8, align_right_from=1):
+    t = doc.add_table(rows=1, cols=len(df.columns))
+    t.alignment = WD_TABLE_ALIGNMENT.CENTER
+    t.autofit = True
+    hdr = t.rows[0].cells
+    for i, c in enumerate(df.columns):
+        hdr[i].text = ""
+        p = hdr[i].paragraphs[0]
+        r = p.add_run(str(c))
+        r.bold = True
+        r.font.size = Pt(fs)
+        r.font.name = "Times New Roman"
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    for _, row in df.iterrows():
+        cells = t.add_row().cells
+        for i, v in enumerate(row):
+            cells[i].text = ""
+            p = cells[i].paragraphs[0]
+            r = p.add_run("" if pd.isna(v) else str(v))
+            r.font.size = Pt(fs)
+            r.font.name = "Times New Roman"
+            if i >= align_right_from and isinstance(v, (int, float)):
+                p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    if widths:
+        for i, w in enumerate(widths):
+            for row in t.rows:
+                row.cells[i].width = Cm(w)
+    borders_three_line(t)
+    return t
+
+
+# ============ 标题 ============
+h = doc.add_paragraph()
+h.alignment = WD_ALIGN_PARAGRAPH.LEFT
+r = h.add_run("ODC1 inhibitor 2D-QSAR model: tables and figure legends")
+r.bold = True
+r.font.size = Pt(14)
+
+p = doc.add_paragraph()
+r = p.add_run(
+    "All values were generated by scripts under /scripts and can be reproduced. "
+    "QSAR modelling: RDKit 2D descriptors, Kennard-Stone split, PLS / Random Forest / XGBoost, "
+    "5-fold cross-validation, 30-run Y-randomization, Williams applicability domain. "
+    "Docking: AutoDock Vina 1.2.5 against human ODC1 (PDB 1D7K, chain A). "
+    "DFT: B3LYP/6-31G* single points (PySCF 2.15).")
+r.font.size = Pt(9)
+
+# ============ Table 1 ============
+caption("Table 1. Composition and activity distribution of the ODC1 inhibitor dataset.")
+rows = []
+for tier, label, src in [
+    ("A", "Human recombinant ODC1 (his-tagged, purified from E. coli)", "J Med Chem 2025"),
+    ("B", "Rat liver native ODC (purified)", "J Med Chem 1992/1995; BMCL 2010"),
+    ("C", "Rat liver native ODC (purified)", "J Med Chem 1978-1995"),
+]:
+    sub = ds[ds.tier == tier]
+    rows.append([tier, label, sub.endpoint.iloc[0] if len(sub) else "-", len(sub),
+                 f"{sub.pIC50.min():.2f}-{sub.pIC50.max():.2f}",
+                 f"{sub.pIC50.mean():.2f} ± {sub.pIC50.std():.2f}", src])
+rows.append(["Total", "—", "—", len(ds), f"{ds.pIC50.min():.2f}-{ds.pIC50.max():.2f}",
+             f"{ds.pIC50.mean():.2f} ± {ds.pIC50.std():.2f}", "9 references"])
+t1 = pd.DataFrame(rows, columns=["Tier", "Data layer", "Endpoint", "n",
+                                 "pIC50 range", "pIC50 mean ± SD", "Source"])
+make_table(t1, widths=[1.1, 6.0, 1.5, 1.0, 2.2, 2.6, 4.0], align_right_from=99)
+note("DFMO (eflornithine) was measured in the same assay as Tier A and was withheld from all "
+     "training/testing splits to serve as a fully external validation compound "
+     "(observed pIC50 = 3.85). Tier C Ki values were converted to equivalent IC50 using the "
+     "Cheng-Prusoff relation assuming [S] = Km (IC50 = 2 Ki). No cell-proliferation or "
+     "cell-lysate IC50 data were included.")
+
+# ============ Table 2 ============
+caption("Table 2. Performance of the three QSAR models.")
+t2 = perf.rename(columns={
+    "model": "Model", "Q2_CV": "Q²(CV)", "RMSE_CV": "RMSE(CV)", "R2_train": "R²(train)",
+    "RMSE_train": "RMSE(train)", "R2_test": "R²(test)", "RMSE_test": "RMSE(test)",
+    "MAE_test": "MAE(test)"})
+t2 = t2[["Model", "Q²(CV)", "RMSE(CV)", "R²(train)", "RMSE(train)", "R²(test)", "RMSE(test)", "MAE(test)"]]
+for c in t2.columns[1:]:
+    t2[c] = t2[c].map(lambda v: f"{v:.3f}")
+make_table(t2, widths=[2.4, 2.0, 2.2, 2.2, 2.4, 2.0, 2.2, 2.0], align_right_from=99)
+note(f"Training n = {S['n_train']}, test n = {S['n_test']}, {S['n_descriptors_selected']} descriptors. "
+     f"Y-randomization (30 runs): mean Q² = {S['y_randomization']['mean']:.3f}, "
+     f"95th percentile = {S['y_randomization']['p95']:.3f}, maximum = {S['y_randomization']['max']:.3f}. "
+     f"Applicability-domain threshold h* = {S['h_star']:.2f}. Random Forest was selected as the "
+     "final model on the basis of test-set performance.")
+
+# ============ Table 3 ============
+caption("Table 3. Predicted inhibitory activity of puerarin and reference compounds.")
+p3 = pred.copy()
+p3["Role"] = p3["role"].map(lambda v: ROLE_EN.get(v, v))
+p3["In AD"] = p3["in_AD"].map({True: "Yes", False: "No"})
+t3 = pd.DataFrame({
+    "Compound": p3["name"],
+    "Role": p3["Role"],
+    "CID": p3["pubchem_cid"].map(lambda v: "—" if pd.isna(v) else str(int(v))),
+    "PLS": p3["pIC50_PLS"].map(lambda v: f"{v:.2f}"),
+    "RF": p3["pIC50_RF"].map(lambda v: f"{v:.2f}"),
+    "XGB": p3["pIC50_XGB"].map(lambda v: f"{v:.2f}"),
+    "Consensus": p3["pIC50_ensemble"].map(lambda v: f"{v:.2f}"),
+    "IC50 (µM)": p3["IC50_uM_ensemble"].map(
+        lambda v: f"{v:.0f}" if v >= 100 else (f"{v:.1f}" if v >= 10 else f"{v:.2f}")),
+    "h": p3["leverage"].map(lambda v: f"{v:.2f}"),
+    "In AD": p3["In AD"],
+    "Observed": p3["observed_pIC50"].map(lambda v: "—" if pd.isna(v) else f"{v:.2f}"),
+})
+make_table(t3, widths=[4.6, 4.6, 1.4, 1.2, 1.2, 1.2, 1.8, 1.6, 1.1, 1.1, 1.4], fs=7.5,
+           align_right_from=99)
+note(f"Consensus = arithmetic mean of PLS, RF and XGBoost predictions. h = leverage in the "
+     f"standardised descriptor space; h > h* ({S['h_star']:.2f}) indicates extrapolation outside "
+     "the applicability domain. Puerarin (h = 0.97) and all natural-product controls lie outside "
+     "the domain, so their predicted values are trend indicators rather than quantitative "
+     "estimates. DFMO was not used in training; its predicted pIC50 is therefore a genuine "
+     "external validation (deviation 0.42 log units from the observed value).")
+
+# ============ Figure legends ============
+caption("Figure 1. Construction, validation and application of the ODC1 inhibitor 2D-QSAR model.")
+p = doc.add_paragraph()
+p.paragraph_format.space_after = Pt(14)
+r = p.add_run(
+    "(A) Distribution of pIC50 across the 60 training compounds. "
+    "(B) Observed versus predicted pIC50 for the training (n = 48) and test (n = 12) sets; "
+    "random forest, Q² = 0.79, R²_test = 0.74. "
+    "(C) Y-randomization test (30 permutations); the real model (green) is well separated from "
+    "the randomized distribution (red dashed: 95th percentile). "
+    "(D) Williams plot defining the applicability domain; h* = 0.56. "
+    "(E) Relative importance of the eight retained descriptors. "
+    "(F) Consensus predicted pIC50 of puerarin and reference compounds; red bars indicate "
+    "compounds outside the applicability domain. "
+    "(G) Ligand efficiency from docking versus QSAR-predicted pIC50; two independent evidence "
+    "lines agree that APA > DFMO > puerarin. "
+    "(H) Ligand efficiency against ODC1 (PDB 1D7K); puerarin has the lowest efficiency (0.24). "
+    "(I) Frontier molecular orbital energies calculated at the B3LYP/6-31G* level.")
+r.font.size = Pt(9)
+
+caption("Figure S1. Absolute docking scores and molecular structures.")
+p = doc.add_paragraph()
+r = p.add_run(
+    "(S1) Absolute Vina scores against ODC1. Large polyphenols score better than DFMO and APA "
+    "purely because the scoring function scales with molecular size; comparison should therefore "
+    "be made using ligand efficiency (Figure 1H), not raw scores. "
+    "(S2) Two-dimensional structures of puerarin (C21H20O9) and eflornithine (DFMO, C6H12F2N2O2).")
+r.font.size = Pt(9)
+
+# ============ Supplementary ============
+doc.add_page_break()
+h = doc.add_paragraph()
+r = h.add_run("Supplementary Tables")
+r.bold = True
+r.font.size = Pt(14)
+
+caption(f"Table S1. Complete training and test set (n = {len(ds)}).")
+s1 = pd.DataFrame({
+    "No.": ds["idx"],
+    "ChEMBL ID": ds["chembl_id"],
+    "SMILES": ds["smiles"],
+    "Value (nM)": ds["value_nM"].map(lambda v: f"{v:.0f}"),
+    "Endpoint": ds["endpoint"],
+    "pIC50": ds["pIC50"].map(lambda v: f"{v:.2f}"),
+    "Tier": ds["tier"],
+    "Species": ds["species"].map(lambda v: "Human" if v.startswith("Homo") else "Rat"),
+    "DOI": ds["doi"],
+})
+make_table(s1, widths=[1.2, 2.6, 7.0, 2.2, 1.8, 1.4, 1.2, 1.6, 4.4], fs=6.5, align_right_from=99)
+note("Tier A, human recombinant ODC1 IC50; Tier B, rat liver ODC IC50; Tier C, rat liver ODC Ki "
+     "converted to equivalent IC50 (IC50 = 2 Ki). All SMILES were standardised with RDKit "
+     "(largest fragment, canonical form) and deduplicated by InChIKey. DOIs were retrieved from "
+     "the ChEMBL document records and verified individually.")
+
+caption("Table S2. Descriptors retained in the final model.")
+make_table(s2.rename(columns={"descriptor": "Descriptor", "definition": "Definition",
+                              "type": "Type", "rf_importance": "RF importance",
+                              "pearson_r_pIC50": "Pearson r"}),
+           widths=[4.0, 7.4, 2.4, 2.6, 2.2], fs=7.5, align_right_from=99)
+note("RF importance from the final random forest model (800 trees); Pearson r computed between "
+     "the scaled descriptor and pIC50 across all 60 compounds.")
+
+caption("Table S3. Docking scores of the nine top-ranked poses for each ligand (kcal/mol).")
+s3x = s3.copy()
+s3x["role"] = s3x["role"].map(lambda v: ROLE_EN.get(v, v))
+make_table(s3x.rename(columns={"compound": "Compound", "role": "Role", "best": "Best"}),
+           widths=[5.0, 5.4, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1.4], fs=6.5,
+           align_right_from=2)
+note("AutoDock Vina 1.2.5, receptor PDB 1D7K chain A (water and the covalent PLP-DFMO adduct "
+     "removed), box centre at the LLP centroid (6.69, 11.74, 54.76), box size 22 × 22 × 22 Å, "
+     "exhaustiveness 32, seed 42.")
+
+caption("Table S4. Electronic structure of puerarin and reference compounds (B3LYP/6-31G*).")
+NAME_MAP = {"Puerarin": "Puerarin", "Eflornithine (DFMO)": "DFMO", "Genistein": "Genistein",
+            "Daidzein": "Daidzein", "Quercetin": "Quercetin", "Resveratrol": "Resveratrol",
+            "APA (3-aminooxy-1-aminopropane)": "APA"}
+s4 = pd.DataFrame([{
+    "Compound": NAME_MAP.get(k, k),
+    "Formula": v.get("formula", ""),
+    "HOMO (eV)": f"{v['homo_eV']:.2f}",
+    "LUMO (eV)": f"{v['lumo_eV']:.2f}",
+    "Gap (eV)": f"{v['gap_eV']:.2f}",
+    "Dipole (D)": f"{v['dipole_D']:.2f}",
+} for k, v in dft.items()]).sort_values("Gap (eV)")
+make_table(s4, widths=[4.0, 3.6, 2.6, 2.6, 2.4, 2.6], fs=8, align_right_from=99)
+note("Single-point calculations on geometries optimised with MMFF94; density fitting "
+     "(Weigend auxiliary basis) was used to reduce memory demand.")
+
+caption("Table S5. Sensitivity analysis: model rebuilt using only Tier A and Tier B "
+        "(purified-enzyme IC50) compounds.")
+t5 = s5.rename(columns={"model": "Model", "n_compounds": "n", "n_train": "Train",
+                        "n_test": "Test", "n_descriptors": "Descriptors", "Q2_CV": "Q²(CV)",
+                        "RMSE_CV": "RMSE(CV)", "R2_train": "R²(train)", "R2_test": "R²(test)",
+                        "RMSE_test": "RMSE(test)"})
+make_table(t5, widths=[2.4, 1.4, 1.6, 1.4, 2.2, 2.0, 2.2, 2.2, 2.0, 2.2], fs=8,
+           align_right_from=99)
+note("Restricting the dataset to the 28 compounds measured as purified-enzyme IC50 lowers the "
+     "cross-validated Q² from 0.79 (full 60-compound set) to 0.42 (RF). The full model therefore "
+     "benefits substantially from the Tier C series, which spans a wider activity range; the "
+     "sensitivity model should be regarded as a more conservative estimate of generalisation.")
+
+doc.save(OUT)
+print(f"已生成: {OUT.name}  ({OUT.stat().st_size/1024:.0f} KB)")

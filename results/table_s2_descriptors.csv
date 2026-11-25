@@ -1,0 +1,9 @@
+descriptor,definition,type,rf_importance,pearson_r_pIC50
+FpDensityMorgan2,Morgan fingerprint (radius 2) bit density,2D topology,0.3414,0.71
+BalabanJ,Balaban topological connectivity index,2D topology,0.1885,-0.577
+PEOE_VSA3,"Gasteiger charge-weighted VdW surface area, bin 3",Surface / charge,0.1524,0.629
+SlogP_VSA3,"Crippen logP-weighted VdW surface area, bin 3",Surface / hydrophobicity,0.1315,0.447
+BCUT2D_MWHI,BCUT high eigenvalue (mass-weighted),2D topology,0.0818,0.454
+VSA_EState8,"VSA-corrected atom-type E-state, bin 8",Surface / electronic,0.0457,-0.435
+SMR_VSA4,"Crippen molar refractivity-weighted VdW surface area, bin 4",Surface / polarizability,0.0327,-0.546
+VSA_EState4,"VSA-corrected atom-type E-state, bin 4",Surface / electronic,0.0259,-0.658
